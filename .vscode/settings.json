@@ -1,4 +1,8 @@
 {
     "editor.formatOnSave": true,
-    "isort.check": true
+    "isort.check": true,
+    "flake8.args": [
+        "--max-line-length=88",
+        "--extend-ignore=E203,E701"
+    ]
 }
