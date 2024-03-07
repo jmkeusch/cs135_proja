@@ -15,19 +15,12 @@
 
 import pickle
 
-from sklearn.pipeline import FunctionTransformer, Pipeline
+with open("problem2_featurizer.pickle", "rb") as f:
+    featurizer = pickle.load(f)
 
-from preprocessing import num_to_sp
+extract_awesome_features = featurizer.transform
 
-with open("problem1_featurizer.pickle", "rb") as f:
-    ...
-    featurizer_step = pickle.load(f)
-
-extract_awesome_features = Pipeline(
-    [("extract_text", FunctionTransformer(num_to_sp)), featurizer_step]
-)
-
-with open("problem1_classifier.pickle", "rb") as f:
+with open("problem2_classifier.pickle", "rb") as f:
     classifier2 = pickle.load(f)
 
 teamname = "Model Behavior"

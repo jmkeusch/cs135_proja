@@ -32,17 +32,15 @@ def pipeline():
                 "featurize",
                 ColumnTransformer(
                     [
-                        ("review_bow", TfidfVectorizer(), "text"),
+                        ("review_bow", TfidfVectorizer(), 1),
                         (
                             "website_onehot",
                             OneHotEncoder(categories=[["amazon", "imdb", "yelp"]]),
-                            ["website_name"],
+                            [0],
                         ),
                     ]
                 ),
             ),
-            # ("extract_text", FunctionTransformer(lambda x_NC: x_NC["text"])),
-            # ("featurize", TfidfVectorizer()),
             (
                 "classify",
                 LogisticRegression(max_iter=2000, solver="lbfgs"),
@@ -97,15 +95,6 @@ C_GRID_COARSE = np.logspace(-4, 5, 19)
 C_GRID_MEDIUM = np.logspace(0, 1.5, 10)
 C_GRID_FINE = np.logspace(0, 1, 21)
 C_GRID = C_GRID_MEDIUM
-
-
-def save_model(pipeline):
-    featurizer = pipeline.steps[1]
-    classifier = pipeline.steps[2][1]
-    with open("problem2_featurizer.pickle", "wb") as f:
-        pickle.dump(featurizer, f)
-    with open("problem2_classifier.pickle", "wb") as f:
-        pickle.dump(classifier, f)
 
 
 PARAM_GRID = {
