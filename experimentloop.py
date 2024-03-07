@@ -2,15 +2,16 @@
 
 # Preprocess data
 import os
-import re
+import pickle
 
 import numpy as np
 import pandas as pd
-from sklearn.dummy import DummyClassifier
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV, cross_validate
+from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import FunctionTransformer, Pipeline
+
+from preprocessing import num_del, num_to_sp, text_col
 
 # from sklearn.dummy import DummyClassifier
 
@@ -61,8 +62,9 @@ def round_dict_vals(d):
     return {k: round_if_float(v) for k, v in d.items()}
 
 
-def output_grid_result(name, grid):
-    print(name)
+def output_grid_result(grid, name=None):
+    if name:
+        print(name)
     print(
         "best auroc: ",
         # np.round(grid.cv_results_["mean_test_roc_auc"][grid.best_index_], 3),
@@ -89,16 +91,13 @@ C_GRID_FINE = np.logspace(0, 1, 21)
 C_GRID = C_GRID_MEDIUM
 
 
-def text_col(x_NC):
-    return x_NC["text"]
-
-
-def num_del(x_NC):
-    return text_col(x_NC).apply(lambda s: re.sub(r"[0-9]", "", s))
-
-
-def num_to_sp(x_NC):
-    return text_col(x_NC).apply(lambda s: re.sub(r"[0-9_]", " ", s))
+def save_model(pipeline):
+    featurizer = pipeline.steps[1]
+    classifier = pipeline.steps[2][1]
+    with open("problem1_featurizer.pickle", "wb") as f:
+        pickle.dump(featurizer, f)
+    with open("problem1_classifier.pickle", "wb") as f:
+        pickle.dump(classifier, f)
 
 
 PARAM_GRID = {
@@ -112,33 +111,31 @@ PARAM_GRID = {
 }
 
 
-
 def main():
     x_train_NC, y_train_N = load_data()
-    param_grids = {
-        "count_alpha": {
-            "extract_text": [
-                FunctionTransformer(text_col),
-                FunctionTransformer(num_to_sp),
-                # FunctionTransformer(num_del),
-            ],
-            "classify": [LogisticRegression(max_iter=400)],
-            "featurize__token_pattern": [
-                # r"(?u)\b\w+\b",
-                r"(?u)\b\w\w+\b",
-                r"(?u)\b\w\w\w+\b",
-                # r"(?u)\b\w\w\w\w+\b",
-            ],
-            "featurize__binary": [True, False],
-            "featurize__strip_accents": ["unicode", None],
-            "featurize__lowercase": [True, False],
-            "classify__C": C_GRID_COARSE,
-        },
+    param_grid = {
+        "extract_text": [
+            # FunctionTransformer(text_col),
+            FunctionTransformer(num_to_sp),
+        ],
+        "classify": [LogisticRegression(max_iter=400)],
+        "featurize__token_pattern": [
+            # r"(?u)\b\w+\b",
+            # r"(?u)\b\w\w+\b",
+            r"(?u)\b\w\w\w+\b",
+            # r"(?u)\b\w\w\w\w+\b",
+        ],
+        # "featurize__binary": [True, False],
+        "featurize__binary": [True],
+        # "featurize__strip_accents": ["unicode", None],
+        "featurize__strip_accents": ["unicode"],
+        # "featurize__lowercase": [True, False],
+        "featurize__lowercase": [True],
+        "classify__C": C_GRID_COARSE,
     }
-    for name, grid in param_grids.items():
-        grid = grid_search(x_train_NC, y_train_N, param_grid=grid)
-        print("\n\n")
-        output_grid_result(name, grid)
+    grid = grid_search(x_train_NC, y_train_N, param_grid=param_grid)
+    output_grid_result(grid)
+    save_model(grid.best_estimator_)
 
 
 if __name__ == "__main__":
