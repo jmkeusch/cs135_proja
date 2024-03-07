@@ -4,10 +4,12 @@ import pickle
 
 import numpy as np
 import pandas as pd
+from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import FunctionTransformer, Pipeline
+from sklearn.preprocessing import OneHotEncoder
 
 from preprocessing import num_del, num_to_sp, text_col
 
@@ -26,8 +28,21 @@ def load_data(data_path=DATA_PATH):
 def pipeline():
     return Pipeline(
         [
-            ("extract_text", FunctionTransformer(lambda x_NC: x_NC["text"])),
-            ("featurize", TfidfVectorizer()),
+            (
+                "featurize",
+                ColumnTransformer(
+                    [
+                        ("review_bow", TfidfVectorizer(), "text"),
+                        (
+                            "website_onehot",
+                            OneHotEncoder(categories=[["amazon", "imdb", "yelp"]]),
+                            ["website_name"],
+                        ),
+                    ]
+                ),
+            ),
+            # ("extract_text", FunctionTransformer(lambda x_NC: x_NC["text"])),
+            # ("featurize", TfidfVectorizer()),
             (
                 "classify",
                 LogisticRegression(max_iter=2000, solver="lbfgs"),
@@ -63,16 +78,15 @@ def round_dict_vals(d):
 def output_grid_result(grid, name=None):
     if name:
         print(name)
-    print(
-        "best auroc: ",
-        # np.round(grid.cv_results_["mean_test_roc_auc"][grid.best_index_], 3),
-        grid.cv_results_["mean_test_roc_auc"][grid.best_index_],
-    )
-    # print("best params: ", round_dict_vals(grid.best_params_))
+    print("best auroc: ", grid.best_score_)
     print("best params: ", grid.best_params_)
     print(
         "vocab size: ",
-        len(grid.best_estimator_.named_steps["featurize"].vocabulary_),
+        len(
+            grid.best_estimator_.named_steps["featurize"]
+            .named_transformers_["review_bow"]
+            .vocabulary_
+        ),
     )
     best_model = grid.best_estimator_.named_steps["classify"]
     print(best_model)
@@ -95,25 +109,17 @@ def save_model(pipeline):
 
 
 PARAM_GRID = {
-    "extract_text": [
-        FunctionTransformer(text_col),
-        FunctionTransformer(num_to_sp),
-        FunctionTransformer(num_del),
-    ],
-    "featurize__token_pattern": [
-        # r"(?u)\b\w+\b",
+    "featurize__review_bow__token_pattern": [
+        r"(?u)\b\w+\b",
         r"(?u)\b\w\w+\b",
         r"(?u)\b\w\w\w+\b",
         # r"(?u)\b\w\w\w\w+\b",
     ],
-    # "featurize__strip_accents": ["unicode", None],
-    "featurize__strip_accents": ["unicode"],
-    # "featurize__lowercase": [True, False],
-    "featurize__lowercase": [True],
-    # "classify__C": C_GRID_VCOARSE,
-    "classify__C": np.logspace(-1, 3, 9),
-    # "classify__l1_ratio": np.linspace(0.0, 1.0, 11),
-    "classify__penalty": ["l2", "l1"],
+    "featurize__review_bow__strip_accents": ["unicode", None],
+    "featurize__review_bow__lowercase": [True, False],
+    "featurize__review_bow__min_df": [1, 2, 3],
+    "featurize__review_bow__max_df": np.logspace(-2, 0, 11),
+    "classify__C": np.logspace(-2, 2, 5),
 }
 
 
